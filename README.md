@@ -1,60 +1,46 @@
-# Crypter - Secure File Encryption Tool
+# Crypter Pro - Advanced Secure File Encryption
 
-A modern, easy-to-use desktop application for encrypting and decrypting files, built with Python.
+A professional-grade encryption tool for Windows, featuring password-based security, folder processing, and secure file shredding.
 
-## 🌟 Features
+## 🌟 Pro Features
 
-*   **Secure Encryption:** Uses industry-standard Fernet (AES) symmetric encryption.
-*   **Key Management:** Generate new unique keys or load existing ones.
-*   **Drag & Drop Simplicity:** (File selection via standard system dialogs).
-*   **Modern UI:** Clean, light-themed interface built with `customtkinter`.
-*   **Visual Feedback:** Clear status updates and logs for all operations.
+*   **🔑 Password-Based Encryption:** No more key files! Uses PBKDF2 (SHA-256) to derive secure keys from your password.
+*   **📂 Folder Support:** Encrypt or Decrypt entire directories recursively with one click.
+*   **🖱️ Drag & Drop:** seamless integration with Windows Explorer. Just drop your files/folders into the app.
+*   **🗑️ Secure Shredding:** Option to securely wipe original files after encryption to prevent recovery.
+*   **⚡ Multi-threaded:** UI stays responsive during large operations.
 
 ## 🛠️ Installation
 
-1.  **Prerequisites:** Ensure you have Python 3.x installed.
-2.  **Clone/Download:** Download this project folder.
-3.  **Install Dependencies:**
-    Open a terminal in the project folder and run:
+1.  **Prerequisites:** Python 3.x
+2.  **Install Dependencies:**
     ```bash
     pip install -r requirements.txt
     ```
 
-## 🚀 How to Run
+## 🚀 Usage Guide
 
-**Option 1: The Easy Way (Windows)**
-Double-click the `run_app.bat` file in the project folder.
+1.  **Select Target:** Drag and drop a file or folder onto the "Drop Zone", or click it to browse.
+2.  **Enter Password:** Type a strong password. You must use the **same password** to decrypt later.
+3.  **Choose Action:**
+    *   **ENCRYPT:** Locks the file(s). (Optional: Check "Securely Shred" to delete originals).
+    *   **DECRYPT:** Unlocks the file(s).
+4.  **Wait:** Watch the logs and progress bar.
 
-**Option 2: via Terminal**
+## 📦 Building Executable (.exe)
+
+To create a standalone file for distribution:
+
 ```bash
-python app.py
+pyinstaller --noconfirm --onefile --windowed --name "CrypterPro" --add-data "venv/Lib/site-packages/tkinterdnd2;tkinterdnd2" app.py
 ```
+*(Note: You may need to adjust the tkinterdnd2 path depending on your python install location)*
 
-## 📖 Usage Guide
+## ⚠️ Security Notice
 
-1.  **Generate a Key:** 
-    *   Click "Generate Key".
-    *   Save the `.key` file in a secure location. **Do not lose this file!** Without it, you cannot decrypt your files.
-2.  **Encrypt a File:**
-    *   Load your key (if not already loaded).
-    *   Click "Select File to Process" and choose your target file.
-    *   Click "ENCRYPT". A new file ending in `.enc` will be created.
-3.  **Decrypt a File:**
-    *   Load the **same key** used for encryption.
-    *   Select the `.enc` file.
-    *   Click "DECRYPT". The file will be restored to its original state.
+*   **Remember your password!** There is NO "Forgot Password" feature. If you forget it, your data is lost forever.
+*   **Shredding is permanent.** Securely deleted files cannot be recovered.
 
 ## 🧑‍💻 Developer
 
 *   Sergei Benjamin Tabanar
-
-## 📦 Dependencies
-
-*   `customtkinter`: For the modern GUI.
-*   `cryptography`: For secure encryption primitives.
-
-## ⚠️ Security Notice
-
-This tool uses symmetric encryption. This means the **same key** is used for both locking and unlocking.
-*   **Keep your key safe.** Anyone with the key can read your files.
-*   **Do not lose your key.** If you lose it, your encrypted files are unrecoverable.

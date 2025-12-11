@@ -1,160 +1,197 @@
-"""
-Crypter - Secure File Encryption Application
-============================================
-
-This module serves as the main entry point for the Crypter application.
-It utilizes `customtkinter` to provide a modern, user-friendly GUI for
-encrypting and decrypting files using symmetric key encryption.
-
-Classes:
-    App: The main application class inheriting from ctk.CTk, handling the UI and user interactions.
-"""
+"""Crypter - Advanced Secure File Encryption Application."""
 
 import customtkinter as ctk
-from tkinter import filedialog, messagebox
+from tkinterdnd2 import DND_FILES, TkinterDnD
+from tkinter import filedialog, messagebox, StringVar
 import os
+import threading
 from crypto_manager import CryptoManager
 
-# Set theme to Light
+# Set theme
 ctk.set_appearance_mode("Light")
 ctk.set_default_color_theme("blue")
 
-class App(ctk.CTk):
-    """
-    The main GUI application class for Crypter.
-    
-    Attributes:
-        crypto_manager (CryptoManager): Handles the encryption and decryption logic.
-        selected_file_path (str): Stores the path of the currently selected file.
-    """
+# Create a class that inherits from both CTk and TkinterDnD.Tk
+class Tk(ctk.CTk, TkinterDnD.DnDWrapper):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.TkdndVersion = TkinterDnD._require(self)
+
+class App(Tk):
     def __init__(self):
         super().__init__()
 
-        self.title("Crypter")
-        self.geometry("500x650")
+        self.title("Crypter Pro")
+        self.geometry("600x750")
         self.resizable(False, False)
         self.crypto_manager = CryptoManager()
-        self.selected_file_path = None
+        self.selected_path = None
+        self.is_processing = False
 
         # --- Layout Grid Config ---
         self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(0, weight=0) # Title
-        self.grid_rowconfigure(1, weight=0) # Status / Key
-        self.grid_rowconfigure(2, weight=0) # File
-        self.grid_rowconfigure(3, weight=0) # Actions
-        self.grid_rowconfigure(4, weight=1) # Logs
-
-        # --- Title ---
-        self.title_label = ctk.CTkLabel(self, text="Crypter", font=("Segoe UI", 36, "bold"), text_color="#2c3e50")
-        self.title_label.grid(row=0, column=0, pady=(40, 5))
-
-        self.subtitle_label = ctk.CTkLabel(self, text="Secure File Encryption", font=("Segoe UI", 16), text_color="#7f8c8d")
-        self.subtitle_label.grid(row=1, column=0, pady=(0, 30))
+        
+        # --- Header ---
+        self.header_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.header_frame.grid(row=0, column=0, pady=(30, 20))
+        
+        self.title_label = ctk.CTkLabel(self.header_frame, text="Crypter Pro", font=("Segoe UI", 32, "bold"), text_color="#2c3e50")
+        self.title_label.pack()
+        self.developer_label = ctk.CTkLabel(self.header_frame, text="by: SBTabanar", font=("Segoe UI", 12), text_color="#7f8c8d")
+        self.developer_label.pack()
+        self.subtitle_label = ctk.CTkLabel(self.header_frame, text="Password Protected Encryption", font=("Segoe UI", 14), text_color="#7f8c8d")
+        self.subtitle_label.pack()
 
         # --- Main Container ---
-        self.main_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.main_frame.grid(row=2, column=0, sticky="ew", padx=40)
+        self.main_frame = ctk.CTkFrame(self, fg_color="white", corner_radius=15)
+        self.main_frame.grid(row=1, column=0, sticky="nsew", padx=30, pady=10)
         self.main_frame.grid_columnconfigure(0, weight=1)
-        self.main_frame.grid_columnconfigure(1, weight=1)
 
-        # Key Management
-        self.btn_gen_key = ctk.CTkButton(self.main_frame, text="Generate Key", command=self.generate_key, height=40, fg_color="#bdc3c7", text_color="#2c3e50", hover_color="#95a5a6", font=("Segoe UI", 13, "bold"))
-        self.btn_gen_key.grid(row=0, column=0, padx=(0, 10), pady=10, sticky="ew")
+        # 1. Target Selection (Drag & Drop Area)
+        self.lbl_target_title = ctk.CTkLabel(self.main_frame, text="1. Select Target", font=("Segoe UI", 14, "bold"), text_color="#34495e")
+        self.lbl_target_title.grid(row=0, column=0, sticky="w", padx=20, pady=(20, 5))
 
-        self.btn_load_key = ctk.CTkButton(self.main_frame, text="Load Key", command=self.load_key, height=40, fg_color="#bdc3c7", text_color="#2c3e50", hover_color="#95a5a6", font=("Segoe UI", 13, "bold"))
-        self.btn_load_key.grid(row=0, column=1, padx=(10, 0), pady=10, sticky="ew")
+        self.drop_frame = ctk.CTkFrame(self.main_frame, fg_color="#ecf0f1", border_width=2, border_color="#bdc3c7", corner_radius=10)
+        self.drop_frame.grid(row=1, column=0, sticky="ew", padx=20, pady=5)
+        self.drop_frame.grid_columnconfigure(0, weight=1)
 
-        self.lbl_key_status = ctk.CTkLabel(self.main_frame, text="Status: No Key Loaded", text_color="#e74c3c", font=("Segoe UI", 12, "bold"))
-        self.lbl_key_status.grid(row=1, column=0, columnspan=2, pady=(5, 20))
+        self.lbl_drop_icon = ctk.CTkLabel(self.drop_frame, text="📂", font=("Segoe UI", 40))
+        self.lbl_drop_icon.grid(row=0, column=0, pady=(20, 5))
+        
+        self.lbl_drop_text = ctk.CTkLabel(self.drop_frame, text="Drag & Drop File or Folder Here", font=("Segoe UI", 14), text_color="#7f8c8d")
+        self.lbl_drop_text.grid(row=1, column=0, pady=(0, 20))
 
-        # File Selection
-        self.btn_browse = ctk.CTkButton(self.main_frame, text="Select File to Process", command=self.browse_file, height=50, font=("Segoe UI", 15, "bold"), fg_color="#3498db", hover_color="#2980b9")
-        self.btn_browse.grid(row=2, column=0, columnspan=2, pady=10, sticky="ew")
+        # Register Drag & Drop
+        self.drop_frame.drop_target_register(DND_FILES)
+        self.drop_frame.dnd_bind('<<Drop>>', self.on_drop)
+        self.drop_frame.bind("<Button-1>", lambda e: self.browse_target()) # Click to browse
+        self.lbl_drop_text.bind("<Button-1>", lambda e: self.browse_target())
+        self.lbl_drop_icon.bind("<Button-1>", lambda e: self.browse_target())
 
-        self.lbl_file_path = ctk.CTkLabel(self.main_frame, text="No file selected", text_color="#7f8c8d", wraplength=400)
-        self.lbl_file_path.grid(row=3, column=0, columnspan=2, pady=(0, 25))
+        self.lbl_selected_path = ctk.CTkLabel(self.main_frame, text="No target selected", text_color="#95a5a6", wraplength=400, font=("Consolas", 11))
+        self.lbl_selected_path.grid(row=2, column=0, pady=(5, 15))
 
-        # --- Action Buttons ---
-        self.btn_encrypt = ctk.CTkButton(self.main_frame, text="ENCRYPT", command=self.encrypt, height=55, fg_color="#e74c3c", hover_color="#c0392b", state="disabled", font=("Segoe UI", 16, "bold"))
-        self.btn_encrypt.grid(row=4, column=0, padx=(0, 10), pady=10, sticky="ew")
+        # 2. Security (Password)
+        self.lbl_pass_title = ctk.CTkLabel(self.main_frame, text="2. Security", font=("Segoe UI", 14, "bold"), text_color="#34495e")
+        self.lbl_pass_title.grid(row=3, column=0, sticky="w", padx=20, pady=(10, 5))
 
-        self.btn_decrypt = ctk.CTkButton(self.main_frame, text="DECRYPT", command=self.decrypt, height=55, fg_color="#2ecc71", hover_color="#27ae60", state="disabled", font=("Segoe UI", 16, "bold"))
-        self.btn_decrypt.grid(row=4, column=1, padx=(10, 0), pady=10, sticky="ew")
+        self.entry_password = ctk.CTkEntry(self.main_frame, placeholder_text="Enter Encryption Password", show="*", height=40, font=("Segoe UI", 13))
+        self.entry_password.grid(row=4, column=0, sticky="ew", padx=20, pady=5)
 
-        # --- Log Box ---
-        self.log_box = ctk.CTkTextbox(self, height=140, fg_color="#ecf0f1", text_color="#2c3e50", font=("Consolas", 12), border_width=1, border_color="#bdc3c7")
-        self.log_box.grid(row=4, column=0, padx=40, pady=(20, 30), sticky="nsew")
-        self.log_box.insert("0.0", "System Ready...\n")
+        self.chk_shred = ctk.CTkCheckBox(self.main_frame, text="Securely Shred Original Files (Encrypt Only)", font=("Segoe UI", 12), text_color="#e74c3c", hover_color="#c0392b", fg_color="#e74c3c")
+        self.chk_shred.grid(row=5, column=0, sticky="w", padx=20, pady=(10, 20))
+
+        # 3. Actions
+        self.action_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        self.action_frame.grid(row=6, column=0, sticky="ew", padx=20, pady=20)
+        self.action_frame.grid_columnconfigure(0, weight=1)
+        self.action_frame.grid_columnconfigure(1, weight=1)
+
+        self.btn_encrypt = ctk.CTkButton(self.action_frame, text="ENCRYPT", command=self.start_encrypt, height=50, fg_color="#e74c3c", hover_color="#c0392b", font=("Segoe UI", 14, "bold"))
+        self.btn_encrypt.grid(row=0, column=0, padx=(0, 10), sticky="ew")
+
+        self.btn_decrypt = ctk.CTkButton(self.action_frame, text="DECRYPT", command=self.start_decrypt, height=50, fg_color="#27ae60", hover_color="#2ecc71", font=("Segoe UI", 14, "bold"))
+        self.btn_decrypt.grid(row=0, column=1, padx=(10, 0), sticky="ew")
+
+        # --- Footer (Logs & Progress) ---
+        self.progress_bar = ctk.CTkProgressBar(self, height=10)
+        self.progress_bar.grid(row=2, column=0, sticky="ew", padx=30, pady=(10, 5))
+        self.progress_bar.set(0)
+
+        self.log_box = ctk.CTkTextbox(self, height=100, fg_color="#ecf0f1", text_color="#2c3e50", font=("Consolas", 11))
+        self.log_box.grid(row=3, column=0, sticky="nsew", padx=30, pady=(5, 20))
+        self.log("System Ready. Drag files above.")
 
     def log(self, message):
-        """Appends a message to the log text box."""
         self.log_box.insert("end", ">> " + message + "\n")
         self.log_box.see("end")
 
-    def update_action_buttons(self):
-        """Enables or disables action buttons based on app state."""
-        if self.crypto_manager.key and self.selected_file_path:
-            self.btn_encrypt.configure(state="normal")
-            self.btn_decrypt.configure(state="normal")
+    def on_drop(self, event):
+        path = event.data
+        # Handle curly braces that TkinterDnD sometimes adds for paths with spaces
+        if path.startswith('{') and path.endswith('}'):
+            path = path[1:-1]
+        
+        self.set_target(path)
+
+    def browse_target(self):
+        # We can't easily pick "File OR Folder" in one dialog on Windows.
+        # We'll default to File, but add a way to pick folder?
+        # For simplicity, let's ask the user via a small popup or just default to file.
+        # Let's just use File Dialog for now as it's most common.
+        path = filedialog.askopenfilename() 
+        if not path:
+             path = filedialog.askdirectory() # Fallback if they cancel file dialog maybe they wanted folder?
+        
+        if path:
+            self.set_target(path)
+
+    def set_target(self, path):
+        self.selected_path = path
+        self.lbl_selected_path.configure(text=path, text_color="#2c3e50")
+        self.log(f"Selected: {os.path.basename(path)}")
+        self.lbl_drop_text.configure(text="Target Selected!")
+        self.drop_frame.configure(border_color="#3498db")
+
+    def validate_inputs(self):
+        if not self.selected_path:
+            messagebox.showwarning("Input Error", "Please select a file or folder first.")
+            return False
+        if not self.entry_password.get():
+            messagebox.showwarning("Input Error", "Please enter a password.")
+            return False
+        return True
+
+    def lock_ui(self, processing=True):
+        state = "disabled" if processing else "normal"
+        self.btn_encrypt.configure(state=state)
+        self.btn_decrypt.configure(state=state)
+        self.entry_password.configure(state=state)
+        self.is_processing = processing
+        if processing:
+            self.progress_bar.start()
         else:
-            self.btn_encrypt.configure(state="disabled")
-            self.btn_decrypt.configure(state="disabled")
+            self.progress_bar.stop()
+            self.progress_bar.set(0)
 
-    def generate_key(self):
-        """Generates a new encryption key and saves it to a user-selected path."""
-        path = filedialog.asksaveasfilename(defaultextension=".key", filetypes=[("Key Files", "*.key")])
-        if path:
-            try:
-                self.crypto_manager.generate_key(path)
-                self.lbl_key_status.configure(text=f"Key: {os.path.basename(path)}", text_color="#27ae60")
-                self.log(f"Key generated at: {path}")
-                self.update_action_buttons()
-            except Exception as e:
-                messagebox.showerror("Error", str(e))
+    def start_encrypt(self):
+        if not self.validate_inputs(): return
+        if self.is_processing: return
+        
+        # Confirm Shredding
+        shred = self.chk_shred.get()
+        if shred:
+            confirm = messagebox.askyesno("Confirm Shredding", "You chose to securely delete the original files.\nThis cannot be undone.\n\nAre you sure?")
+            if not confirm: return
 
-    def load_key(self):
-        """Loads an existing encryption key from a user-selected file."""
-        path = filedialog.askopenfilename(filetypes=[("Key Files", "*.key")])
-        if path:
-            try:
-                self.crypto_manager.load_key(path)
-                self.lbl_key_status.configure(text=f"Key: {os.path.basename(path)}", text_color="#27ae60")
-                self.log(f"Key loaded from: {path}")
-                self.update_action_buttons()
-            except Exception as e:
-                self.lbl_key_status.configure(text="Error Loading Key", text_color="#e74c3c")
-                messagebox.showerror("Error", f"Failed to load key: {e}")
+        self.lock_ui(True)
+        threading.Thread(target=self.run_process, args=("encrypt", shred), daemon=True).start()
 
-    def browse_file(self):
-        """Opens a file dialog for the user to select a file to process."""
-        path = filedialog.askopenfilename()
-        if path:
-            self.selected_file_path = path
-            self.lbl_file_path.configure(text=f"{os.path.basename(path)}")
-            self.log(f"File selected: {path}")
-            self.update_action_buttons()
+    def start_decrypt(self):
+        if not self.validate_inputs(): return
+        if self.is_processing: return
+        
+        self.lock_ui(True)
+        threading.Thread(target=self.run_process, args=("decrypt", False), daemon=True).start()
 
-    def encrypt(self):
-        """Encrypts the selected file using the loaded key."""
-        if not self.selected_file_path: return
+    def run_process(self, mode, shred):
+        password = self.entry_password.get()
+        target = self.selected_path
+        
+        def progress_update(filename, msg):
+            self.log(f"[{mode.upper()}] {filename}")
+
         try:
-            out_path = self.crypto_manager.encrypt_file(self.selected_file_path)
-            self.log(f"ENCRYPTED: {os.path.basename(out_path)}")
-            messagebox.showinfo("Success", "File Encrypted Successfully!")
+            success, total = self.crypto_manager.process_target(
+                target, password, mode, shred, progress_callback=progress_update
+            )
+            self.log(f"\nCompleted: {success}/{total} files processed successfully.")
+            messagebox.showinfo("Done", f"{mode.title()}ion Complete!\nProcessed {success}/{total} files.")
         except Exception as e:
-            self.log(f"ERROR: {str(e)}")
-            messagebox.showerror("Encryption Error", str(e))
-
-    def decrypt(self):
-        """Decrypts the selected file using the loaded key."""
-        if not self.selected_file_path: return
-        try:
-            out_path = self.crypto_manager.decrypt_file(self.selected_file_path)
-            self.log(f"DECRYPTED: {os.path.basename(out_path)}")
-            messagebox.showinfo("Success", "File Decrypted Successfully!")
-        except Exception as e:
-            self.log(f"ERROR: {str(e)}")
-            messagebox.showerror("Decryption Error", str(e))
+            self.log(f"CRITICAL ERROR: {str(e)}")
+            messagebox.showerror("Error", str(e))
+        finally:
+            self.lock_ui(False)
 
 if __name__ == "__main__":
     app = App()
