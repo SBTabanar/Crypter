@@ -1,3 +1,15 @@
+"""
+Crypter - Secure File Encryption Application
+============================================
+
+This module serves as the main entry point for the Crypter application.
+It utilizes `customtkinter` to provide a modern, user-friendly GUI for
+encrypting and decrypting files using symmetric key encryption.
+
+Classes:
+    App: The main application class inheriting from ctk.CTk, handling the UI and user interactions.
+"""
+
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
 import os
@@ -8,6 +20,13 @@ ctk.set_appearance_mode("Light")
 ctk.set_default_color_theme("blue")
 
 class App(ctk.CTk):
+    """
+    The main GUI application class for Crypter.
+    
+    Attributes:
+        crypto_manager (CryptoManager): Handles the encryption and decryption logic.
+        selected_file_path (str): Stores the path of the currently selected file.
+    """
     def __init__(self):
         super().__init__()
 
@@ -68,10 +87,12 @@ class App(ctk.CTk):
         self.log_box.insert("0.0", "System Ready...\n")
 
     def log(self, message):
+        """Appends a message to the log text box."""
         self.log_box.insert("end", ">> " + message + "\n")
         self.log_box.see("end")
 
     def update_action_buttons(self):
+        """Enables or disables action buttons based on app state."""
         if self.crypto_manager.key and self.selected_file_path:
             self.btn_encrypt.configure(state="normal")
             self.btn_decrypt.configure(state="normal")
@@ -80,6 +101,7 @@ class App(ctk.CTk):
             self.btn_decrypt.configure(state="disabled")
 
     def generate_key(self):
+        """Generates a new encryption key and saves it to a user-selected path."""
         path = filedialog.asksaveasfilename(defaultextension=".key", filetypes=[("Key Files", "*.key")])
         if path:
             try:
@@ -91,6 +113,7 @@ class App(ctk.CTk):
                 messagebox.showerror("Error", str(e))
 
     def load_key(self):
+        """Loads an existing encryption key from a user-selected file."""
         path = filedialog.askopenfilename(filetypes=[("Key Files", "*.key")])
         if path:
             try:
@@ -103,6 +126,7 @@ class App(ctk.CTk):
                 messagebox.showerror("Error", f"Failed to load key: {e}")
 
     def browse_file(self):
+        """Opens a file dialog for the user to select a file to process."""
         path = filedialog.askopenfilename()
         if path:
             self.selected_file_path = path
@@ -111,6 +135,7 @@ class App(ctk.CTk):
             self.update_action_buttons()
 
     def encrypt(self):
+        """Encrypts the selected file using the loaded key."""
         if not self.selected_file_path: return
         try:
             out_path = self.crypto_manager.encrypt_file(self.selected_file_path)
@@ -121,6 +146,7 @@ class App(ctk.CTk):
             messagebox.showerror("Encryption Error", str(e))
 
     def decrypt(self):
+        """Decrypts the selected file using the loaded key."""
         if not self.selected_file_path: return
         try:
             out_path = self.crypto_manager.decrypt_file(self.selected_file_path)
